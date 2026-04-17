@@ -1,0 +1,64 @@
+
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.2.0-python3.12
+  env_file:
+    - .env
+  volumes:
+    - ../airflow/dags:/opt/airflow/dags
+    - ../airflow/logs:/opt/airflow/logs
+    - ../airflow/plugins:/opt/airflow/plugins
+  restart: always
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: airflow
+      RABBITMQ_DEFAULT_PASS: rabbit_secure_pass
+      RABBITMQ_DEFAULT_VHOST: airflow
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    mem_limit: 512m
+    cpus: 0.5
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow_init
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      airflow db migrate &&
+      airflow users create \
+      --username ${AIRFLOW_ADMIN_USER} \
+      --password ${AIRFLOW_ADMIN_PASSWORD} \
+      --firstname ${AIRFLOW_ADMIN_FIRSTNAME} \
+      --lastname ${AIRFLOW_ADMIN_LASTNAME} \
+      --role ${AIRFLOW_ADMIN_ROLE} \
+      --email ${AIRFLOW_ADMIN_EMAIL}
+      "
+    mem_limit: 512m
+    cpus: 0.5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow_scheduler
+    command: airflow scheduler
+    depends_on:
+      - airflow-init
+    mem_limit: 1g
+    cpus: 1
+
+  airflow-api-server:
+    <<: *airflow-common
+    container_name: airflow_api
+    command: airflow api-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - airflow-init
+    mem_limit: 1g
+    cpus: 1

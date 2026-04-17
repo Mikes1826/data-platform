@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+
+  airflow-worker:
+    image: apache/airflow:3.2.0-python3.12
+    container_name: airflow-worker
+    env_file:
+      - .env.worker
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: >
+        apache-airflow[celery,postgres]
+    command: celery worker
+    restart: always
+    mem_limit: 2g
+    cpus: 1.5
